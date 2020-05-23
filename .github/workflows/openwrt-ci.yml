@@ -209,9 +209,9 @@ jobs:
 
       - name: Make download
         run: |
-          make download -j8
-          find dl -size -1024c -exec rm -f {} \;
-
+          make download -j8 || make download -j1 V=s
+          find ./dl/ -size -1024c -exec rm -f {} \;
+          df -h
       - name: Compile firmware
         run: |
           make -j$(nproc) || make -j1 V=s
@@ -220,37 +220,20 @@ jobs:
           echo "======================="
           df -h
           echo "======================="
-          du -h --max-depth=1 ./ --exclude=build_dir --exclude=bin
-          du -h --max-depth=1 ./build_dir
-          du -h --max-depth=1 ./bin
-
+          du -h ./ --max-depth=1
+          du -h /mnt/openwrt/ --max-depth=1
       - name: Prepare artifact
         run: find ./bin/targets/ -type d -name "packages" | xargs rm -rf {}
 
-      - name: Upload artifact
+      - name: Upload config.seed
+        uses: actions/upload-artifact@master
+        with:
+          name: config.seed
+          path: ./bin/targets/*/*/config.seed
+
+      - name: Upload firmware
         uses: actions/upload-artifact@master
         with:
           name: OpenWrt_firmware
           path: ./bin/targets/
-
-      - name: Create release
-        if: github.event == 'push'
-        id: create_release
-        uses: actions/create-release@v1.0.1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
-          draft: false
-          prerelease: false      
-
-      - name: Upload release asset
-        if: github.event == 'push'
-        id: upload-release-asset 
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./bin/targets/*/*/
